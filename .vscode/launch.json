@@ -9,7 +9,7 @@
             "type": "python",
             "request": "launch",
             "program": "${file}",
-            "args": ["-u", "http://172.16.186.150/pinghw.php"],
+            "args": ["-u", "http://192.168.1.159/pinghw.php"],
             "console": "integratedTerminal",
             "justMyCode": true
         }

