@@ -28,14 +28,12 @@ def make_get_request(url:str,
     ret_val:bool = False
     
     try:
-        # reset default headers
         headers = OrderedDict({
             "Host": SKIP_HEADER,
             "User-Agent": SKIP_HEADER,
             "Accept-Encoding": SKIP_HEADER,
         })
 
-        # add the desired headers here in order, duplicate keys are not possible
         headers.update(OrderedDict([
             ("Host", "injection.com"),
             ("Accept", "*/*"),
